@@ -16,3 +16,6 @@ wallet = "/Users/melinamejia/solana-wallet/my-keypair.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 1000000

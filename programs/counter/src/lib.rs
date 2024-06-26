@@ -19,23 +19,37 @@ mod counter {
         Ok(())
     }
 
-    pub fn increase_counter(ctx: Context<Increase>, increment: u64) -> Result<()> {
+    pub fn increment_counter(ctx: Context<Increment>) -> Result<()> {
       let counter = &mut ctx.accounts.counter; // Create a mutable reference to the counter account
-      counter.number += increment; // Increase the counter's value
-      msg!("Counter incremented in {}, result: {}", increment, counter.number);
+      counter.number += 1; // Increase the counter's value
+      msg!("Counter incremented: {}", counter.number);
+      Ok(())
+    }
+
+    pub fn decrement_counter(ctx: Context<Decrement>) -> Result<()> {
+      let counter = &mut ctx.accounts.counter;
+      counter.number -= 1; 
+      msg!("Counter decremented: {}", counter.number);
+      Ok(())
+    }
+
+    pub fn update_counter(ctx: Context<Update>, number: u64) -> Result<()> {
+      ctx.accounts.counter.number = number;
+      msg!("Counter updated to: {}", number);
       Ok(())
     }
 }
 
 // List of accounts, this is the context of an instruction
 #[derive(Accounts)] // Macro to create the context of an instruction
+#[instruction(count: u64)] // anchor know we're sending attributes to the instruction that is different from the context/account
 pub struct Create<'info> { // 'info: it's a lifetime, can have any name
     // space = 8 bytes for the discriminator + the size of your structure
-    #[account(init, payer = authority, space = 8 + 8 + 32)] // Le indica a contador que es una estructura account y le da ciertos atributos.
+    #[account(init, payer = authority, space = 8 + 8 + 32)] // Indicates that the counter has an account structure
     pub counter: Account<'info, Counter>,
 
-    #[account(mut)] // mut: Indica que va a cambiar
-    pub authority: Signer<'info>, // La autoridad es variable porque tiene que pagar la renta de la cuenta contador
+    #[account(mut)]
+    pub authority: Signer<'info>, // The authority is mutable because it has to pay the rent for Counter Account
 
     pub system_program: Program<'info, System>
 }
@@ -47,19 +61,36 @@ pub struct Delete<'info> {
 
     #[account(
         mut,
-        constraint = counter.authority == counter.key(), // Estamos preguntando si el contador.autoridad es el mismo que firmó al hacer el borrar
+        constraint = counter.authority == authority.key() @ ErrorCode::NotAuthorized, // We're asking if counter.authority is the same that signed the delete instruction
         close = authority
     )]
     pub counter: Account<'info, Counter>
 }
 
 #[derive(Accounts)]
-pub struct Increase<'info> {
+pub struct Increment<'info> {
     #[account(mut)]
     pub counter: Account<'info, Counter>,
 
     #[account(mut)]
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Decrement<'info> {
+    #[account(mut)]
+    pub counter: Account<'info, Counter>,
+
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(number: u64)]
+pub struct Update<'info> {
+  #[account(mut, constraint = counter.authority == authority.key() @ ErrorCode::NotAuthorized)]
+  pub counter: Account<'info, Counter>,
+  pub authority: Signer<'info>,
 }
 
 #[account]
